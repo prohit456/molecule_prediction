@@ -15,8 +15,8 @@ class molecule:
     self.df = self.enhance_df(self.df)
     self.num_features = 11;
     #print self.df.head()
-    self.validate_df = self.df.iloc[2080:, 0:]
-    self.df = self.df.iloc[0:2080, 0:]
+    self.validate_df = self.df.iloc[2085:, 0:]
+    self.df = self.df.iloc[0:2385, 0:]
     print self.df.head()
     self.nnet0_list = nnet0_list;
     self.nnet1_list = nnet1_list;
@@ -98,10 +98,7 @@ class molecule:
 
 
   def train(self, nnet_inst, y_index, arg_learning_rate, num_epochs):
-    initial = tf.global_variables_initializer()
-    self.sess.run(initial)
-    hl0_dbg = dbg_variable('hl0_dbg.txt', 1)
-    batch_size = 128;
+    batch_size = 32;
     for train_idx, test_idx in  self.sss.split(self.df_train_x_mat,self.df_train_y_mat):
       x_train, x_test = self.df_train_x_mat[train_idx], self.df_train_x_mat[test_idx]
       y_train, y_test = self.df_train_y_mat[train_idx], self.df_train_y_mat[test_idx]
@@ -109,9 +106,9 @@ class molecule:
     
       for eno in range(num_epochs):
         bcount = 0;
-        if (eno < 1250):
+        if (eno < 125):
           tf.assign(nnet_inst.learning_rate, arg_learning_rate)
-        elif (eno < 2500):
+        elif (eno < 250):
           tf.assign(nnet_inst.learning_rate, arg_learning_rate)
         else:
           tf.assign(nnet_inst.learning_rate, 0.001)
@@ -120,8 +117,8 @@ class molecule:
           y_batch = y_train[bcount*batch_size:(bcount + 1)*batch_size, y_index].reshape(batch_size, 1);
           feed_dict={'x':x_batch, 'y':y_batch};
           nnet_inst.train(self.sess, feed_dict)
-        if (nnet_inst.nnet_name == 'nnet0'):
-          nnet_inst.log_weights(self.sess)
+        #if (nnet_inst.nnet_name == 'nnet0'):
+        #  nnet_inst.log_weights(self.sess)
     
         #hl0_dbg.log_var(nnet_inst.hl_weights[0], self.sess)
         feed_dict={'x':x_test, 'y':y_test[0:, y_index].reshape(y_test.shape[0], 1)}
@@ -203,10 +200,12 @@ class molecule:
           return ip
 
 
-molecule_inst = molecule([32, 16], [32, 16, 4], [0, 0], [22, 22]);
+molecule_inst = molecule([32, 16, 4], [32, 16, 4], [0, 0], [22, 22]);
+initial = tf.global_variables_initializer()
+molecule_inst.sess.run(initial)
 molecule_inst.nnet0.init_dbg_classes();
-molecule_inst.train(molecule_inst.nnet0, 0, 0.1, 600)
-#molecule_inst.train(molecule_inst.nnet1, 1, 0.1, 600)
+molecule_inst.train(molecule_inst.nnet1, 1, 0.01, 4000)
+molecule_inst.train(molecule_inst.nnet0, 0, 0.01, 4000)
 molecule_inst.nnet0.save_params(molecule_inst.sess)
 molecule_inst.nnet1.save_params(molecule_inst.sess)
 molecule_inst.validate('validate.csv')
