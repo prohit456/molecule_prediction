@@ -53,13 +53,18 @@ class nnet:
     if (load_from_file == 1):
       (wt, bias) = self.load_from_file(layer_num, file_id)
       return (wt, bias)
+    initializer = tf.contrib.layers.xavier_initializer()
     if (layer_num == 0):
       wt = tf.Variable(tf.truncated_normal([self.num_features, self.hl_size_list[0]], mean = 0, stddev = 1/np.sqrt(self.num_features)), name='layer' + str(layer_num) + '_weights')
       bias = tf.Variable(tf.truncated_normal([self.hl_size_list[0]], mean = 0, stddev = 1/np.sqrt(self.num_features)), name='layer' + str(layer_num) + '_biases')
+      #wt = tf.Variable(initializer([self.num_features, self.hl_size_list[0]]), name='layer' + str(layer_num) + '_weights')
+      #bias = tf.Variable(initializer([self.hl_size_list[0]]), name='layer' + str(layer_num) + '_biases')
     else:
       print [self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]]
-      wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.num_features)), name='layer' + str(layer_num) + '_weights')
-      bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.num_features)), name='layer' + str(layer_num) + '_biases')
+      #wt = tf.Variable(initializer([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]]), name='layer' + str(layer_num) + '_weights')
+      #bias = tf.Variable(initializer([self.hl_size_list[layer_num]]), name='layer' + str(layer_num) + '_biases')
+      wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_weights')
+      bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_biases')
     return (wt, bias)
 
   def load_from_file(self, layer_num, file_id):
@@ -72,8 +77,8 @@ class nnet:
 
   def create_nn_map(self):
     for hl_layer_num in range(self.num_hidden_layers):
-        #self.inputs.append(tf.nn.relu(tf.matmul(self.inputs[hl_layer_num], self.hl_weights[hl_layer_num]) + self.hl_biases[hl_layer_num]))
-        self.inputs.append(tf.matmul(self.inputs[hl_layer_num], self.hl_weights[hl_layer_num]) + self.hl_biases[hl_layer_num])
+        self.inputs.append(tf.nn.relu(tf.matmul(self.inputs[hl_layer_num], self.hl_weights[hl_layer_num]) + self.hl_biases[hl_layer_num]))
+        #self.inputs.append(tf.matmul(self.inputs[hl_layer_num], self.hl_weights[hl_layer_num]) + self.hl_biases[hl_layer_num])
     final_output = tf.matmul(self.inputs[-1], self.op_wt) + self.op_bias;
     return final_output;
 
@@ -84,6 +89,7 @@ class nnet:
 
   def create_trainer(self, learning_rate):
     return tf.train.GradientDescentOptimizer(learning_rate).minimize(self.loss)
+    #return tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
     #return tf.train.RMSPropOptimizer(learning_rate).minimize(self.loss)
 
   def train(self, sess, ip_dict):
