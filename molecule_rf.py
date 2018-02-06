@@ -92,7 +92,8 @@ rf0 = RandomForestRegressor()
 rf1 = RandomForestRegressor()
 
 
-grid_search = GridSearchCV(estimator = rf0, param_grid = {'n_estimators':[5, 10, 15, 20], 'min_samples_split':[2, 20, 80, 200], 'min_samples_leaf':[1, 2, 4, 8, 16, 32], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
+#grid_search = GridSearchCV(estimator = rf0, param_grid = {'n_estimators':[5, 10, 15, 20], 'min_impurity_decrease':[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
+grid_search = GridSearchCV(estimator = rf0, param_grid = {'n_estimators':[5, 10, 15, 20], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
 X = create_train_matrix(train_df)
 y = create_test_matrix(train_df)
 grid_search.fit (X, y[:,0])
@@ -105,7 +106,8 @@ rf0 = grid_search.best_estimator_
 
 
 
-grid_search = GridSearchCV(estimator = rf1, param_grid = {'n_estimators':[5, 10, 15, 20, 40, 60], 'min_samples_split':[2, 20, 80, 200], 'min_samples_leaf':[1, 2, 4, 8, 16, 32], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
+#grid_search = GridSearchCV(estimator = rf1, param_grid = {'n_estimators':[5, 10, 15, 20, 40, 60], 'min_impurity_decrease':[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
+grid_search = GridSearchCV(estimator = rf1, param_grid = {'n_estimators':[5, 10, 15, 20, 40, 60], 'max_features':[0.1, 0.2, 0.4, 0.8, 1]}, scoring = 'neg_mean_squared_log_error', cv=5)
 grid_search.fit (X, y[:,1])
 rf1_params = grid_search.best_params_
 best_accuracy = grid_search.best_score_
@@ -117,10 +119,12 @@ print rf1_params
 print best_accuracy
 
 
-#rf0 = RandomForestRegressor(n_estimators=rf0_params['n_estimators'], min_samples_split=rf0_params['min_samples_split'], min_samples_leaf=rf0_params['min_samples_leaf'], max_features=rf0_params['max_features'])
-#rf1 = RandomForestRegressor(n_estimators=rf1_params['n_estimators'], min_samples_split=rf1_params['min_samples_split'], min_samples_leaf=rf1_params['min_samples_leaf'], max_features=rf1_params['max_features'])
-#rf0.fit (X, y[:,0])
-#rf1.fit (X, y[:,1])
+#rf0 = RandomForestRegressor(n_estimators=rf0_params['n_estimators'], min_impurity_decrease=rf0_params['min_impurity_decrease'], max_features=rf0_params['max_features'])
+#rf1 = RandomForestRegressor(n_estimators=rf1_params['n_estimators'], min_impurity_decrease=rf1_params['min_impurity_decrease'], max_features=rf1_params['max_features'])
+rf0 = RandomForestRegressor(n_estimators=rf0_params['n_estimators'], max_features=rf0_params['max_features'])
+rf1 = RandomForestRegressor(n_estimators=rf1_params['n_estimators'], max_features=rf1_params['max_features'])
+rf0.fit (X, y[:,0])
+rf1.fit (X, y[:,1])
 test_df = pd.read_csv('test.csv')
 test_df = enhance_df(test_df);
 test_df = normalize_df(test_df, min_dict, max_dict);
