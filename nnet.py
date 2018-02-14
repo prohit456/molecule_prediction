@@ -64,10 +64,10 @@ class nnet:
       print [self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]]
       #wt = tf.Variable(initializer([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]]), name='layer' + str(layer_num) + '_weights')
       #bias = tf.Variable(initializer([self.hl_size_list[layer_num]]), name='layer' + str(layer_num) + '_biases')
-      #wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_weights')
-      #bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_biases')
-      wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1), name='layer' + str(layer_num) + '_weights')
-      bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1), name='layer' + str(layer_num) + '_biases')
+      wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_weights')
+      bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1/np.sqrt(self.hl_size_list[layer_num - 1])), name='layer' + str(layer_num) + '_biases')
+      #wt = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num - 1], self.hl_size_list[layer_num]], mean = 0, stddev = 1), name='layer' + str(layer_num) + '_weights')
+      #bias = tf.Variable(tf.truncated_normal([self.hl_size_list[layer_num]], mean = 0, stddev = 1), name='layer' + str(layer_num) + '_biases')
     return (wt, bias)
 
   def load_from_file(self, layer_num, file_id):
