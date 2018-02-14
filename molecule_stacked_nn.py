@@ -19,16 +19,16 @@ class molecule:
     #print self.df.head()
     self.validate_df = self.df.iloc[2085:, 0:]
     self.df = self.df.iloc[0:2385, 0:]
-    print self.df.head()
+    #print self.df.head()
     self.nnet0_list = nnet0_list;
     self.nnet1_list = nnet1_list;
     self.max_dict = {};
     self.min_dict = {};
     self.populate_dicts();
-    print self.max_dict
+    #print self.max_dict
     self.df = self.normalize_df(self.df);
     #self.df = pd.get_dummies(self.df, columns=['spacegroup'])
-    print self.df.columns
+    #print self.df.columns
     self.sss = ShuffleSplit(n_splits=4, test_size=0.1, random_state=1)
     self.df_train_x_mat = self.create_train_matrix(self.df)
     self.df_train_y_mat = self.create_test_matrix(self.df)
@@ -174,7 +174,7 @@ class molecule:
 
 
 
-  def validate(self, op_file, nnet0, nnet1):
+  def validate(self, op_file, nnet0, nnet1, fidx):
     self.validate_df = self.normalize_df(self.validate_df)
     #self.validate_df = pd.get_dummies(self.validate_df, columns=['spacegroup'])
     validate_x = self.create_train_matrix(self.validate_df)
@@ -193,6 +193,8 @@ class molecule:
     feed_dict={'x':validate_x, 'y':y_be.reshape(y_be.shape[0], 1)}
     y1_loss = nnet1.calc_loss(self.sess, feed_dict)
     print 'validation loss Band energy', y1_loss
+    fidx.write('validation loss formation energy'+str(y0_loss)+'\n');
+    fidx.write('validation loss Band energy'+str(y1_loss)+'\n');
 
     fl_y0 = sum(y0, [])
     fl_y1 = sum(y1, [])
@@ -238,19 +240,32 @@ class molecule:
 
 
 molecule_inst_list = []
-molecule_population = []
+molecule0_inst_list = []
+molecule1_inst_list = []
+molecule2_inst_list = []
+molecule3_inst_list = []
+molecule_population0 = []
+molecule_population1 = []
+molecule_population2 = []
+molecule_population3 = []
 y0_loss_list = []
 y1_loss_list = []
 sess = tf.Session()
 for count in range(4):
   molecule_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+for count in range(4):
+  molecule0_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+  molecule1_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
 
 for count in range(10):
-  molecule_population.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+  molecule_population0.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+  molecule_population1.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+  molecule_population2.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
+  molecule_population3.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
 
 final_molecule_inst = molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess)
 
-
+fidx = open('validate_loss.txt', 'w');
 initial = tf.global_variables_initializer()
 sess.run(initial)
 for count, molecule_inst in enumerate(molecule_inst_list):
@@ -259,14 +274,14 @@ for count, molecule_inst in enumerate(molecule_inst_list):
   molecule_inst.train(molecule_inst.nnet0, 0, 0.01, 200)
   #molecule_inst.nnet0.save_params(molecule_inst.sess)
   #molecule_inst.nnet1.save_params(molecule_inst.sess)
-  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', molecule_inst.nnet0, molecule_inst.nnet1)
+  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', molecule_inst.nnet0, molecule_inst.nnet1, fidx)
   y0_loss_list.append(y0_loss)
   y1_loss_list.append(y1_loss)
   molecule_inst.predict('test.csv', 'pred_'+str(count)+'.csv', molecule_inst.nnet0, molecule_inst.nnet1)
   molecule_inst.predict('upd_train.csv', 'train_pred_'+str(count)+ '.csv', molecule_inst.nnet0, molecule_inst.nnet1)
 
-print y0_loss_list
-print y1_loss_list
+print 'init loss', y0_loss_list
+print 'init loss', y1_loss_list
 
 import copy
 import random
@@ -331,23 +346,44 @@ def sel_two(y0_loss_list, y1_loss_list, molecule_inst_list):
     nnet1_list.append(molecule_inst_list[y1_indices[idx]].nnet1)
   return [nnet0_list, nnet1_list]
 
+print len(molecule_inst_list)
 [nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule_inst_list)
 
 
-for count, molecule_inst in enumerate(molecule_population):
+for count, molecule_inst in enumerate(molecule_population0):
+  print count
+  ip_nnet0 = mutate_nnets(molecule_inst.nnet0, nnet0_list[0], nnet0_list[1], sess)
+  molecule_inst.train(ip_nnet0, 0, 0.01, 100)
+  ip_nnet1 = mutate_nnets(molecule_inst.nnet1, nnet1_list[0], nnet1_list[1], sess)
+  molecule_inst.train(ip_nnet1, 1, 0.01, 100)
+  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
+  y0_loss_list.append(y0_loss)
+  y1_loss_list.append(y1_loss)
+  molecule0_inst_list.append(molecule_inst)
+print 'second loss', y0_loss_list
+print 'second loss', y1_loss_list
+
+[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule0_inst_list)
+y0_loss_list = []
+y1_loss_list = []
+
+for count, molecule_inst in enumerate(molecule_population1):
+  print count
   ip_nnet0 = mutate_nnets(molecule_inst.nnet0, nnet0_list[0], nnet0_list[1], sess)
   molecule_inst.train(ip_nnet0, 0, 0.01, 200)
   ip_nnet1 = mutate_nnets(molecule_inst.nnet1, nnet1_list[0], nnet1_list[1], sess)
-  print count
-  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1)
   molecule_inst.train(ip_nnet1, 1, 0.01, 200)
+  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
   y0_loss_list.append(y0_loss)
   y1_loss_list.append(y1_loss)
-  molecule_inst_list.append(molecule_inst)
+  molecule1_inst_list.append(molecule_inst)
 print y0_loss_list
 print y1_loss_list
 
-[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule_inst_list)
+[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule1_inst_list)
+y0_loss_list = []
+y1_loss_list = []
+
 
 
 print 'final stretch'
@@ -356,7 +392,7 @@ final_molecule_inst.train(ip_nnet0, 0, 0.01, 2000)
 ip_nnet1 = mutate_nnets(final_molecule_inst.nnet1, nnet1_list[0], nnet1_list[0], sess)
 print count
 final_molecule_inst.train(ip_nnet1, 1, 0.01, 2000)
-(y0_loss, y1_loss) = final_molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1)
+(y0_loss, y1_loss) = final_molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
 y0_loss_list.append(y0_loss)
 y1_loss_list.append(y1_loss)
 print y0_loss_list
