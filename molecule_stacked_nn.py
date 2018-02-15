@@ -8,6 +8,7 @@ from prop_dicts import *
 import tensorflow as tf
 from sklearn.linear_model import LinearRegression
 from sklearn.kernel_ridge import KernelRidge
+import random
 
 class molecule:
 
@@ -240,89 +241,84 @@ class molecule:
 
 
 molecule_inst_list = []
-molecule0_inst_list = []
-molecule1_inst_list = []
-molecule2_inst_list = []
-molecule3_inst_list = []
-molecule_population0 = []
-molecule_population1 = []
-molecule_population2 = []
-molecule_population3 = []
 y0_loss_list = []
 y1_loss_list = []
 sess = tf.Session()
+molecule_inst = molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess)
 for count in range(4):
   molecule_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
-for count in range(4):
-  molecule0_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
-  molecule1_inst_list.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
 
-for count in range(10):
-  molecule_population0.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
-  molecule_population1.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
-  molecule_population2.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
-  molecule_population3.append(molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess))
 
-final_molecule_inst = molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess)
+
 
 fidx = open('validate_loss.txt', 'w');
 initial = tf.global_variables_initializer()
 sess.run(initial)
+nnet0_params_list = []
+nnet1_params_list = []
 for count, molecule_inst in enumerate(molecule_inst_list):
   molecule_inst.nnet0.init_dbg_classes();
-  molecule_inst.train(molecule_inst.nnet1, 1, 0.01, 200)
   molecule_inst.train(molecule_inst.nnet0, 0, 0.01, 200)
-  #molecule_inst.nnet0.save_params(molecule_inst.sess)
-  #molecule_inst.nnet1.save_params(molecule_inst.sess)
+  molecule_inst.train(molecule_inst.nnet1, 1, 0.01, 200)
   (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', molecule_inst.nnet0, molecule_inst.nnet1, fidx)
   y0_loss_list.append(y0_loss)
   y1_loss_list.append(y1_loss)
+  nnet0_params_list.append(molecule_inst.nnet0.get_np_wts_and_biases(sess));
+  nnet1_params_list.append(molecule_inst.nnet1.get_np_wts_and_biases(sess));
   molecule_inst.predict('test.csv', 'pred_'+str(count)+'.csv', molecule_inst.nnet0, molecule_inst.nnet1)
   molecule_inst.predict('upd_train.csv', 'train_pred_'+str(count)+ '.csv', molecule_inst.nnet0, molecule_inst.nnet1)
 
 print 'init loss', y0_loss_list
 print 'init loss', y1_loss_list
 
-import copy
-import random
 
-def mutate_nnets(ip_nnet, nnet0, nnet1, sess):
+def mutate_nnets(nnet0_params, nnet1_params, sess):
   print 'in mutate_nnets'
 
+  #nnet0_params = nnet0.get_np_wts_and_biases(sess);
+  #nnet1_params = nnet0.get_np_wts_and_biases(sess);
+  new_params = []
+  hl_wt_array = []
+  hl_bias_array = []
+
   #weights part
-  for wt_idx, h_wts in enumerate(nnet0.hl_weights):
-     np_h_wts0 = sess.run(h_wts)
-     np_h_wts1 = sess.run(nnet1.hl_weights[wt_idx])
-     np_h_biases0 = sess.run(nnet0.hl_biases[wt_idx])
-     np_h_biases1 = sess.run(nnet1.hl_biases[wt_idx])
-     mask = 0*np_h_wts0;
-     umask = mask + 1;
-     mask_bias = 0*np_h_biases0;
-     umask_bias = mask_bias + 1;
+  for wt_idx, h_wts in enumerate(nnet0_params[0]):
+     umask = 0*h_wts;
+     mask = umask + 1;
+     umask_bias = 0*nnet0_params[1][wt_idx];
+     mask_bias = umask_bias + 1;
      for row in range(mask.shape[0]):
        for col in range(mask.shape[1]):
          if (random.random() > 0.8):
            mask[row, col] = 1;
            umask[row, col] = 0
-     tf.assign(ip_nnet.hl_weights[wt_idx], tf.constant(np_h_wts0*mask + np_h_wts1[wt_idx]*umask));
-     tf.assign(ip_nnet.hl_biases[wt_idx], tf.constant(np_h_biases0*mask_bias + np_h_biases1[wt_idx]*umask_bias));
 
-  np_h_wts0 = sess.run(nnet0.op_wt)
-  np_h_wts1 = sess.run(nnet1.op_wt)
-  np_h_biases0 = sess.run(nnet0.op_bias)
-  np_h_biases1 = sess.run(nnet1.op_bias)
-  mask = 0*np_h_wts0;
-  umask = mask + 1;
-  mask_bias = 0*np_h_biases0;
-  umask_bias = mask_bias + 1;
+     for bias_idx in range(mask_bias.shape[0]):
+       if (random.random() > 0.8):
+         mask_bias[bias_idx] = 1;
+         umask_bias[bias_idx] = 0;
+
+     hl_wt_array.append(nnet0_params[0][wt_idx]*umask + nnet1_params[0][wt_idx]*mask)
+     hl_bias_array.append(nnet0_params[1][wt_idx]*umask_bias + nnet1_params[1][wt_idx]*mask_bias)
+
+  new_params.append(hl_wt_array)
+  new_params.append(hl_bias_array)
+  np_h_wts0 = nnet0_params[2] 
+  np_h_wts1 = nnet1_params[2]
+  np_h_biases0 = nnet0_params[3] 
+  np_h_biases1 = nnet1_params[3]
+  umask = 0*np_h_wts0;
+  mask = umask + 1;
+  umask_bias = 0*np_h_biases0;
+  mask_bias = umask_bias + 1;
   for row in range(mask.shape[0]):
     for col in range(mask.shape[1]):
       if (random.random() > 0.8):
         mask[row, col] = 1;
         umask[row, col] = 0
-  tf.assign(ip_nnet.op_wt, tf.constant(np_h_wts0*mask + np_h_wts1*umask));
-  #tf.assign(ip_nnet.op_bias, tf.constant(np_h_biases0*1+ np_h_biases1*0));
-  return ip_nnet
+  new_params.append(tf.constant(np_h_wts0*mask + np_h_wts1*umask))
+  new_params.append(tf.constant(nnet0_params[3]))
+  return new_params
   #for hl_no, hl in enumerate(nnet0.hl_weights):
   #  if (random.random() > 0.5):
       
@@ -331,70 +327,82 @@ def mutate_nnets(ip_nnet, nnet0, nnet1, sess):
 
 
 # select two
-def sel_two(y0_loss_list, y1_loss_list, molecule_inst_list):
+def sel_two(y0_loss_list, y1_loss_list, params_list0, params_list1):
   y0_indices = np.argsort(y0_loss_list)
   print y0_indices
-  nnet0_list = []
+  nnet0_params_list = []
   for idx in range(2):
-    nnet0_list.append(molecule_inst_list[y0_indices[idx]].nnet0)
+    nnet0_params_list.append(params_list0[y0_indices[idx]])
   
   
   y1_indices = np.argsort(y1_loss_list)
   print y1_indices
-  nnet1_list = []
+  nnet1_params_list = []
   for idx in range(2):
-    nnet1_list.append(molecule_inst_list[y1_indices[idx]].nnet1)
-  return [nnet0_list, nnet1_list]
-
-print len(molecule_inst_list)
-[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule_inst_list)
+    nnet1_params_list.append(params_list1[y1_indices[idx]])
+  return [nnet0_params_list, nnet1_params_list]
 
 
-for count, molecule_inst in enumerate(molecule_population0):
-  print count
-  ip_nnet0 = mutate_nnets(molecule_inst.nnet0, nnet0_list[0], nnet0_list[1], sess)
-  molecule_inst.train(ip_nnet0, 0, 0.01, 100)
-  ip_nnet1 = mutate_nnets(molecule_inst.nnet1, nnet1_list[0], nnet1_list[1], sess)
-  molecule_inst.train(ip_nnet1, 1, 0.01, 100)
-  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
-  y0_loss_list.append(y0_loss)
-  y1_loss_list.append(y1_loss)
-  molecule0_inst_list.append(molecule_inst)
-print 'second loss', y0_loss_list
-print 'second loss', y1_loss_list
 
-[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule0_inst_list)
+[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, nnet0_params_list, nnet1_params_list)
 y0_loss_list = []
 y1_loss_list = []
+nnet0_params_list = []
+nnet1_params_list = []
 
-for count, molecule_inst in enumerate(molecule_population1):
-  print count
-  ip_nnet0 = mutate_nnets(molecule_inst.nnet0, nnet0_list[0], nnet0_list[1], sess)
-  molecule_inst.train(ip_nnet0, 0, 0.01, 200)
-  ip_nnet1 = mutate_nnets(molecule_inst.nnet1, nnet1_list[0], nnet1_list[1], sess)
-  molecule_inst.train(ip_nnet1, 1, 0.01, 200)
-  (y0_loss, y1_loss) = molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
-  y0_loss_list.append(y0_loss)
-  y1_loss_list.append(y1_loss)
-  molecule1_inst_list.append(molecule_inst)
-print y0_loss_list
-print y1_loss_list
 
-[nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, molecule1_inst_list)
-y0_loss_list = []
-y1_loss_list = []
+#to modify
+for genetic_iter in range(2):
+  for count in range(10):
+    molecule_inst = molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess)
+    initial = tf.global_variables_initializer()
+    sess.run(initial)
+    print count
+    ip_nnet0_params = mutate_nnets(nnet0_list[0], nnet0_list[1], sess)
+    molecule_inst.nnet0.set_np_wts_and_biases(sess, ip_nnet0_params);
+    molecule_inst.train(molecule_inst.nnet0, 0, 0.01, 200)
+  
+    ip_nnet1_params = mutate_nnets(nnet1_list[0], nnet1_list[1], sess)
+    molecule_inst.nnet1.set_np_wts_and_biases(sess, ip_nnet1_params);
+    molecule_inst.train(molecule_inst.nnet1, 1, 0.01, 200)
+  
+    (y0_loss, y1_loss) = molecule_inst.validate('validat_dbg.csv', molecule_inst.nnet0, molecule_inst.nnet1, fidx)
+    y0_loss_list.append(y0_loss)
+    y1_loss_list.append(y1_loss)
+    nnet0_params_list.append(molecule_inst.nnet0.get_np_wts_and_biases(sess))
+    nnet1_params_list.append(molecule_inst.nnet1.get_np_wts_and_biases(sess))
+  print 'second loss', y0_loss_list
+  print 'second loss', y1_loss_list
+  
+  [nnet0_list, nnet1_list] = sel_two(y0_loss_list, y1_loss_list, nnet0_params_list, nnet1_params_list)
+  y0_loss_list = []
+  y1_loss_list = []
+  nnet0_params_list = []
+  nnet1_params_list = []
+
+
+
+
 
 
 
 print 'final stretch'
-ip_nnet0 = mutate_nnets(final_molecule_inst.nnet0, nnet0_list[0], nnet0_list[0], sess)
-final_molecule_inst.train(ip_nnet0, 0, 0.01, 2000)
-ip_nnet1 = mutate_nnets(final_molecule_inst.nnet1, nnet1_list[0], nnet1_list[0], sess)
+
+molecule_inst = molecule([32, 16, 8, 4], [32, 16, 8, 4], [0, 0], [22, 22], sess)
+initial = tf.global_variables_initializer()
+sess.run(initial)
 print count
-final_molecule_inst.train(ip_nnet1, 1, 0.01, 2000)
-(y0_loss, y1_loss) = final_molecule_inst.validate('validate.csv', ip_nnet0, ip_nnet1, fidx)
+ip_nnet0_params = mutate_nnets(nnet0_list[0], nnet0_list[1], sess)
+molecule_inst.nnet0.set_np_wts_and_biases(sess, ip_nnet0_params);
+molecule_inst.train(molecule_inst.nnet0, 0, 0.01, 2000)
+
+ip_nnet1_params = mutate_nnets(nnet1_list[0], nnet1_list[1], sess)
+molecule_inst.nnet1.set_np_wts_and_biases(sess, ip_nnet1_params);
+molecule_inst.train(molecule_inst.nnet1, 1, 0.01, 2000)
+
+(y0_loss, y1_loss) = molecule_inst.validate('validate_dbg.csv', molecule_inst.nnet0, molecule_inst.nnet1, fidx)
 y0_loss_list.append(y0_loss)
 y1_loss_list.append(y1_loss)
 print y0_loss_list
 print y1_loss_list
-final_molecule_inst.predict('test.csv', 'pred_'+str(count)+'.csv', ip_nnet0, ip_nnet1)
+molecule_inst.predict('test.csv', 'pred_dbg_'+str(count)+'.csv', molecule_inst.nnet0, molecule_inst.nnet1)

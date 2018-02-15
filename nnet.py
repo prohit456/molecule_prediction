@@ -39,6 +39,13 @@ class nnet:
     self.loss = self.generate_loss()
     self.trainer = self.create_trainer(learning_rate)
 
+  def init_non_nnet_variables(self, sess):
+    print 'in init nnet variables'
+    var_init = tf.variables_initializer([self.final_output, self.loss, self.trainer]);
+    sess.run(var_init)
+
+
+
   def init_hidden_layers(self, file_id, load_from_file):
     for hl_layer_num in range(self.num_hidden_layers):
       (wt, bias) = self.get_weight_and_bias(hl_layer_num, load_from_file, file_id);
@@ -77,6 +84,22 @@ class nnet:
     hl_file_name = 'params/' + self.nnet_name+ '_hl_biases_'+str(layer_num)+'_'+str(file_id)+'.npy';
     bias = tf.Variable(np.load(hl_file_name), name='layer' + str(layer_num) + '_biases')
     return (wt, bias)
+
+  def get_np_wts_and_biases(self, sess):
+    hl_wt_array = []
+    hl_bias_array = []
+    for idx,weight in enumerate(self.hl_weights):
+      hl_wt_array.append(sess.run(weight))
+      hl_bias_array.append(sess.run(self.hl_biases[idx]))
+    [op_wt, op_bias] = [sess.run(self.op_wt), sess.run(self.op_bias)]
+    return [hl_wt_array, hl_bias_array, op_wt, op_bias]
+
+  def set_np_wts_and_biases(self, sess, params):
+    for idx, weight in enumerate(params[0]): #hl_weights
+      sess.run(tf.assign(self.hl_weights[idx], tf.constant(weight)))
+      sess.run(tf.assign(self.hl_biases[idx], tf.constant(params[1][idx])))
+    sess.run(tf.assign(self.op_wt, params[2]))
+    sess.run(tf.assign(self.op_bias, params[3]))
 
   def create_nn_map(self):
     for hl_layer_num in range(self.num_hidden_layers):
